@@ -25,6 +25,7 @@ const EXTERNAL_PARSED_YAML = hoek.applyToDefaults(PARSED_YAML, {
 const NON_CHAINPR_PARSED_YAML = hoek.applyToDefaults(PARSED_YAML_PR, {
     annotations: { 'screwdriver.cd/chainPR': false }
 });
+const DEFAULT_PAGE = 1;
 const MAX_COUNT = 1000;
 const FAKE_MAX_COUNT = 5;
 
@@ -2105,6 +2106,8 @@ describe('Pipeline Model', () => {
     describe('get metrics', () => {
         const startTime = '2019-01-20T12:00:00.000Z';
         const endTime = '2019-01-30T12:00:00.000Z';
+        const page = 1;
+        const count = 2;
         const build11 = {
             id: 11,
             eventId: 1,
@@ -2157,7 +2160,9 @@ describe('Pipeline Model', () => {
                         name: 'BatMan',
                         username: 'batman'
                     },
-                    message: 'Update screwdriver.yaml'
+                    message: 'Update screwdriver.yaml',
+                    // eslint-disable-next-line max-len
+                    url: 'https://github.com/Code-Beast/models/commit/14b920bef306eb1bde8ec0b6a32372eebecc6d0e'
                 },
                 createTime: '2019-01-22T21:00:00.000Z',
                 creator: {
@@ -2188,6 +2193,15 @@ describe('Pipeline Model', () => {
             };
             event2 = Object.assign({}, {
                 id: 1234,
+                commit: {
+                    author: {
+                        name: 'BatMan',
+                        username: 'batman'
+                    },
+                    message: 'Update package.json',
+                    // eslint-disable-next-line max-len
+                    url: 'https://github.com/Code-Beast/models/commit/14b920bef306eb1bde8ec0b6a32372eebecc6d0e'
+                },
                 createTime: '2019-01-24T11:25:00.610Z',
                 sha: '14b920bef306eb1bde8ec0b6a32372eebecc6d0e',
                 getMetrics: sinon.stub().resolves([build21, build22])
@@ -2202,6 +2216,7 @@ describe('Pipeline Model', () => {
                 id: event1.id,
                 createTime: event1.createTime,
                 sha: event1.sha,
+                commit: event1.commit,
                 causeMessage: event1.causeMessage,
                 duration: duration1,
                 status: build12.status,
@@ -2212,6 +2227,7 @@ describe('Pipeline Model', () => {
                 id: event2.id,
                 createTime: event2.createTime,
                 sha: event2.sha,
+                commit: event2.commit,
                 causeMessage: event2.causeMessage,
                 duration: duration2,
                 status: build22.status,
@@ -2221,7 +2237,7 @@ describe('Pipeline Model', () => {
             }];
         });
 
-        it('generates metrics', () => {
+        it('generates metrics by time', () => {
             const eventListConfig = {
                 params: {
                     pipelineId: 123,
@@ -2230,6 +2246,7 @@ describe('Pipeline Model', () => {
                 sort: 'ascending',
                 sortBy: 'id',
                 paginate: {
+                    page: DEFAULT_PAGE,
                     count: MAX_COUNT
                 },
                 startTime,
@@ -2243,6 +2260,32 @@ describe('Pipeline Model', () => {
                 assert.calledWith(eventFactoryMock.list, eventListConfig);
                 assert.calledOnce(event1.getMetrics);
                 assert.calledOnce(event2.getMetrics);
+                assert.deepEqual(result, metrics);
+            });
+        });
+
+        it('generates metrics by pagination', () => {
+            const eventListConfig = {
+                params: {
+                    pipelineId: 123,
+                    type: 'pipeline'
+                },
+                sort: 'ascending',
+                sortBy: 'id',
+                paginate: {
+                    page,
+                    count
+                },
+                readOnly: true
+            };
+
+            eventFactoryMock.list.resolves([event1, event0, event2]);
+
+            return pipeline.getMetrics({ page, count }).then((result) => {
+                assert.calledWith(eventFactoryMock.list, eventListConfig);
+                assert.calledOnce(event0.getMetrics);
+                assert.calledOnce(event2.getMetrics);
+                assert.calledOnce(event1.getMetrics);
                 assert.deepEqual(result, metrics);
             });
         });
@@ -2266,7 +2309,7 @@ describe('Pipeline Model', () => {
                     sort: 'ascending',
                     sortBy: 'id',
                     paginate: {
-                        page: 1,
+                        page: DEFAULT_PAGE,
                         count: FAKE_MAX_COUNT
                     },
                     readOnly: true
@@ -2445,6 +2488,7 @@ describe('Pipeline Model', () => {
                 sort: 'ascending',
                 sortBy: 'id',
                 paginate: {
+                    page: DEFAULT_PAGE,
                     count: MAX_COUNT
                 },
                 readOnly: true
